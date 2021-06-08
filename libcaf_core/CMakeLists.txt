@@ -287,6 +287,7 @@ caf_add_component(
     dynamic_spawn
     error
     expected
+    flow.flat_map
     flow.for_each
     flow.merge
     function_view
