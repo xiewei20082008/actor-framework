@@ -12,6 +12,8 @@ is based on [Keep a Changelog](https://keepachangelog.com).
   when setting a `timespan` parameter such as `caf.middleman.heartbeat-interval`
   via config file or CLI to `0s` and then printing the config parameter, e.g.,
   via `--dump-config`.
+- Scheduled actors now accept default handlers for down messages etc. with
+  non-const apply operator such as lambda expressions declared as `mutable`.
 
 ### Removed
 
