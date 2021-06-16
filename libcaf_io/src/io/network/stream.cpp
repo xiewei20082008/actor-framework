@@ -142,8 +142,10 @@ bool stream::handle_read_result(rw_state read_result, size_t rb) {
       passivate();
       return false;
     case rw_state::indeterminate:
+      CAF_LOG_DEBUG("handle_read_result::indeterminate, rb=" << rb);
       return false;
     case rw_state::success:
+      CAF_LOG_DEBUG("handle_read_result::success, rb=" << rb);
       // Recover previous pending write if it is the first successful read after
       // want_read was reported.
       if (wr_op_backoff_) {
@@ -163,7 +165,7 @@ bool stream::handle_read_result(rw_state read_result, size_t rb) {
       }
       break;
     case rw_state::want_read:
-      CAF_LOG_ERROR("handle_read_result encountered rw_state::want_read");
+      CAF_LOG_ERROR("handle_read_result encountered rw_state::want_read, rb=" << rb);
       return false;
   }
   return true;
