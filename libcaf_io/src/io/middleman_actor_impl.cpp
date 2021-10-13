@@ -76,12 +76,12 @@ auto middleman_actor_impl::make_behavior() -> behavior_type {
       auto rp = make_response_promise();
       endpoint key{std::move(hostname), port};
       // respond immediately if endpoint is cached
-      auto x = cached_tcp(key);
-      if (x) {
-        CAF_LOG_DEBUG("found cached entry" << CAF_ARG(*x));
-        rp.deliver(get<0>(*x), get<1>(*x), get<2>(*x));
-        return get_delegated{};
-      }
+      // auto x = cached_tcp(key);
+      // if (x) {
+      //   CAF_LOG_DEBUG("found cached entry" << CAF_ARG(*x));
+      //   rp.deliver(get<0>(*x), get<1>(*x), get<2>(*x));
+      //   return get_delegated{};
+      // }
       // attach this promise to a pending request if possible
       auto rps = pending(key);
       if (rps) {
