@@ -315,6 +315,9 @@ behavior basp_broker::make_behavior() {
     },
     // received from middleman actor (delegated)
     [=](connect_atom, scribe_ptr& ptr, uint16_t port) {
+
+      CAF_LOG_DEBUG("note: basp broken get connect_atom");
+
       CAF_LOG_TRACE(CAF_ARG(ptr) << CAF_ARG(port));
       CAF_ASSERT(ptr != nullptr);
       auto rp = make_response_promise();

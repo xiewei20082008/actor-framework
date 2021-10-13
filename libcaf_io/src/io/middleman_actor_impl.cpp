@@ -95,12 +95,15 @@ auto middleman_actor_impl::make_behavior() -> behavior_type {
         rp.deliver(std::move(r.error()));
         return get_delegated{};
       }
+      CAF_LOG_DEBUG("note: Connected to endpoint and handshake down");
       auto& ptr = *r;
       std::vector<response_promise> tmp{std::move(rp)};
       pending_.emplace(key, std::move(tmp));
+      CAF_LOG_DEBUG("note: request broker_ to connect");
       request(broker_, infinite, connect_atom_v, std::move(ptr), port)
         .then(
           [=](node_id& nid, strong_actor_ptr& addr, mpi_set& sigs) {
+            CAF_LOG_DEBUG("note: got nid and addr");
             auto i = pending_.find(key);
             if (i == pending_.end())
               return;
@@ -115,6 +118,7 @@ auto middleman_actor_impl::make_behavior() -> behavior_type {
             pending_.erase(i);
           },
           [=](error& err) {
+            CAF_LOG_DEBUG("note: broker return error");
             auto i = pending_.find(key);
             if (i == pending_.end())
               return;
