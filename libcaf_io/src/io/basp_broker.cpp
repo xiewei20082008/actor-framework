@@ -559,8 +559,12 @@ void basp_broker::learned_new_node(const node_id& nid) {
   CAF_LOG_TRACE(CAF_ARG(nid));
   if (spawn_servers.count(nid) > 0) {
     CAF_LOG_ERROR("learned_new_node called for known node " << CAF_ARG(nid));
-    return;
+    CAF_LOG_ERROR("note: learned_new_node called for known node count:" << spawn_servers.count(nid));
+    anon_send_exit(spawn_servers[nid], exit_reason::kill);
+    spawn_servers.erase(nid);
+    CAF_LOG_DEBUG("note: erase learned node");
   }
+  CAF_LOG_DEBUG("note: add new learned node");
   auto tmp = system().spawn<hidden>([=](event_based_actor* tself) -> behavior {
     CAF_LOG_TRACE("");
     // terminate when receiving a down message
