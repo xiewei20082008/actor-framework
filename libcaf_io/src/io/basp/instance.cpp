@@ -389,10 +389,11 @@ connection_state instance::handle(execution_unit* ctx, connection_handle hdl,
       // Drop repeated handshakes.
       if (tbl_.lookup_direct(source_node)) {
         CAF_LOG_DEBUG(
-          "received repeated client handshake:" << CAF_ARG(source_node));
-        CAF_LOG_DEBUG( "try remove old one and create new one");
-        auto old_hdl = *tbl_.lookup_direct(source_node);
-        tbl_.erase_direct(old_hdl);
+          "note: received repeated client handshake:" << CAF_ARG(source_node));
+        break;
+        // CAF_LOG_DEBUG( "note: try remove old one and create new one");
+        // auto old_hdl = *tbl_.lookup_direct(source_node);
+        // tbl_.erase_direct(old_hdl);
         // callee_.purge_state(source_node);
       }
       // Add direct route to this node and remove any indirect entry.
