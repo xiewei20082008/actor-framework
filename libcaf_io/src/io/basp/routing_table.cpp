@@ -92,6 +92,7 @@ void routing_table::add_direct(const connection_handle& hdl,
   std::unique_lock<std::mutex> guard{mtx_};
   auto hdl_added = direct_by_hdl_.emplace(hdl, nid).second;
   auto nid_added = direct_by_nid_.emplace(nid, hdl).second;
+  CAF_LOG_DEBUG("note: new direct"<< CAF_ARG(nid) << CAF_ARG(hdl));
   CAF_ASSERT(hdl_added && nid_added);
   CAF_IGNORE_UNUSED(hdl_added);
   CAF_IGNORE_UNUSED(nid_added);

@@ -390,11 +390,16 @@ connection_state instance::handle(execution_unit* ctx, connection_handle hdl,
         "note: client handshake:" << CAF_ARG(hdl) << CAF_ARG(source_node));
       // Drop repeated handshakes.
       if (tbl_.lookup_direct(source_node)) {
-        CAF_LOG_DEBUG(
-          "note: received repeated client handshake:"<< CAF_ARG(hdl) << CAF_ARG(source_node));
+        CAF_LOG_DEBUG("note: received repeated client handshake:"<< CAF_ARG(hdl) << CAF_ARG(source_node));
+        auto old_hdl = *(tbl_.lookup_direct(source_node));
+        CAF_LOG_DEBUG("note: old hdl:"<< CAF_ARG(old_hdl));
         break;
         // CAF_LOG_DEBUG( "note: try remove old one and create new one");
-        // auto old_hdl = *tbl_.lookup_direct(source_node);
+        // if(old_hdl == hdl) {
+        //   CAF_LOG_DEBUG(
+        //     "note: received repeated client handshake:"<< CAF_ARG(hdl) << CAF_ARG(source_node));
+        //   break;
+        // }
         // tbl_.erase_direct(old_hdl);
         // callee_.purge_state(source_node);
       }
