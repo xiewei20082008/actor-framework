@@ -358,10 +358,17 @@ connection_state instance::handle(execution_unit* ctx, connection_handle hdl,
       }
       // Close this connection if we already have a direct connection.
       if (tbl_.lookup_direct(source_node)) {
-        CAF_LOG_DEBUG(
-          "close redundant direct connection:" << CAF_ARG(source_node));
-        callee_.finalize_handshake(source_node, aid, sigs);
-        return redundant_connection;
+        auto old_hdl = *tbl_.lookup_direct(source_node);
+        CAF_LOG_DEBUG("note: old handle:" << CAF_ARG(old_hdl) << "new handle:"<< CAF_ARG(hdl));
+        if(old_hdl == hdl) {
+          CAF_LOG_DEBUG(
+            "close redundant direct connection:" << CAF_ARG(source_node));
+          callee_.finalize_handshake(source_node, aid, sigs);
+          return redundant_connection;
+        }
+        tbl_.erase_direct(old_hdl);
+        // callee_.finalize_handshake(source_node, aid, sigs);
+        // return redundant_connection;
       }
       // Add direct route to this node and remove any indirect entry.
       CAF_LOG_DEBUG("new direct connection:" << CAF_ARG(source_node));
@@ -392,19 +399,22 @@ connection_state instance::handle(execution_unit* ctx, connection_handle hdl,
       if (tbl_.lookup_direct(source_node)) {
         CAF_LOG_DEBUG("note: received repeated client handshake:"<< CAF_ARG(hdl) << CAF_ARG(source_node));
         auto old_hdl = *(tbl_.lookup_direct(source_node));
-        CAF_LOG_DEBUG("note: old hdl:"<< CAF_ARG(old_hdl));
-        break;
-        // CAF_LOG_DEBUG( "note: try remove old one and create new one");
+        CAF_LOG_DEBUG("note: new hdl:" << CAF_ARG(hdl) << "old hdl:"<< CAF_ARG(old_hdl));
+        if(hdl==old_hdl) {
+          CAF_LOG_DEBUG("note: redundant hand shake");
+          break;
+        }
+        CAF_LOG_DEBUG( "note: try remove old one and create new one");
+        tbl_.erase_direct(old_hdl);
         // if(old_hdl == hdl) {
         //   CAF_LOG_DEBUG(
         //     "note: received repeated client handshake:"<< CAF_ARG(hdl) << CAF_ARG(source_node));
         //   break;
         // }
-        // tbl_.erase_direct(old_hdl);
         // callee_.purge_state(source_node);
       }
       // Add direct route to this node and remove any indirect entry.
-      CAF_LOG_DEBUG("new direct connection:" << CAF_ARG(source_node));
+      CAF_LOG_DEBUG("new direct coenection:" << CAF_ARG(source_node));
       tbl_.add_direct(hdl, source_node);
       auto was_indirect = tbl_.erase_indirect(source_node);
       callee_.learned_new_node_directly(source_node, was_indirect);
