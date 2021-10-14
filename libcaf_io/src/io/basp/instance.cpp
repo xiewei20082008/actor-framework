@@ -45,8 +45,11 @@ connection_state instance::handle(execution_unit* ctx, new_data_msg& dm,
   CAF_LOG_TRACE(CAF_ARG(dm) << CAF_ARG(is_payload));
   // function object providing cleanup code on errors
   auto err = [&](connection_state code) {
-    if (auto nid = tbl_.erase_direct(dm.handle))
+    CAF_LOG_WARNING("note: instance::handle, get error");
+    if (auto nid = tbl_.erase_direct(dm.handle)) {
+      CAF_LOG_WARNING("note: instance::handle, get error, nid=" << CAF_ARG(nid));
       callee_.purge_state(nid);
+    }
     return code;
   };
   byte_buffer* payload = nullptr;
@@ -387,7 +390,10 @@ connection_state instance::handle(execution_unit* ctx, connection_handle hdl,
       if (tbl_.lookup_direct(source_node)) {
         CAF_LOG_DEBUG(
           "received repeated client handshake:" << CAF_ARG(source_node));
-        break;
+        CAF_LOG_DEBUG( "try remove old one and create new one");
+        auto old_hdl = *tbl_.lookup_direct(source_node);
+        tbl_.erase_direct(old_hdl);
+        callee_.purge_state(source_node);
       }
       // Add direct route to this node and remove any indirect entry.
       CAF_LOG_DEBUG("new direct connection:" << CAF_ARG(source_node));
