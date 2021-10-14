@@ -393,7 +393,7 @@ connection_state instance::handle(execution_unit* ctx, connection_handle hdl,
         CAF_LOG_DEBUG( "try remove old one and create new one");
         auto old_hdl = *tbl_.lookup_direct(source_node);
         tbl_.erase_direct(old_hdl);
-        callee_.purge_state(source_node);
+        // callee_.purge_state(source_node);
       }
       // Add direct route to this node and remove any indirect entry.
       CAF_LOG_DEBUG("new direct connection:" << CAF_ARG(source_node));
