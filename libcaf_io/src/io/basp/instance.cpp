@@ -379,6 +379,8 @@ connection_state instance::handle(execution_unit* ctx, connection_handle hdl,
     }
     case message_type::client_handshake: {
       // Deserialize payload.
+      CAF_LOG_DEBUG(
+        "note: client handshake:" << CAF_ARG(source_node)<< CAF_ARG(hdl));
       binary_deserializer source{ctx, *payload};
       node_id source_node;
       if (!source.apply(source_node)) {
@@ -389,7 +391,7 @@ connection_state instance::handle(execution_unit* ctx, connection_handle hdl,
       // Drop repeated handshakes.
       if (tbl_.lookup_direct(source_node)) {
         CAF_LOG_DEBUG(
-          "note: received repeated client handshake:" << CAF_ARG(source_node));
+          "note: received repeated client handshake:" << CAF_ARG(source_node)<< CAF_ARG(hdl));
         break;
         // CAF_LOG_DEBUG( "note: try remove old one and create new one");
         // auto old_hdl = *tbl_.lookup_direct(source_node);
