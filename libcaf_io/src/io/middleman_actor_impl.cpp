@@ -106,7 +106,7 @@ auto middleman_actor_impl::make_behavior() -> behavior_type {
               return;
             if (nid && addr) {
               monitor(addr);
-              cached_tcp_.emplace(key, std::make_tuple(nid, addr, sigs));
+              // cached_tcp_.emplace(key, std::make_tuple(nid, addr, sigs));
             }
             auto res
               = make_message(std::move(nid), std::move(addr), std::move(sigs));
