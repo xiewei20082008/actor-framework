@@ -804,7 +804,8 @@ bool connect_with_timeout(native_socket fd, const sockaddr* addr,
   namespace sc = std::chrono;
   CAF_LOG_TRACE(CAF_ARG(fd.id) << CAF_ARG(timeout));
   // Set to non-blocking or fail.
-  if (auto err = nonblocking(fd, true)) {
+  auto res = nonblocking(fd, true);
+  if (!res) {
     caf_write_file_string_app("/tmp/dual_tmp_log", "Failed to set to nonblocking");
     return false;
   }
@@ -818,7 +819,8 @@ bool connect_with_timeout(native_socket fd, const sockaddr* addr,
   // Call connect() once and see if it succeeds. Otherwise enter a poll()-loop.
   if (connect(fd, addr, addrlen) == 0) {
     // Done! Try restoring the socket to blocking and return.
-    if (auto err = nonblocking(fd, false)) {
+    auto res = nonblocking(fd, false);
+    if (!res) {
       caf_write_file_string_app("/tmp/dual_tmp_log", "Failed to set to blocking");
       return false;
     }
@@ -846,8 +848,11 @@ bool connect_with_timeout(native_socket fd, const sockaddr* addr,
 
           caf_write_file_string_app("/tmp/dual_tmp_log", "probe ok.");
           // Done! Try restoring the socket to blocking and return.
-          if (auto err = nonblocking(fd, false))
+          auto res = nonblocking(fd, false);
+          if (!res) {
+            caf_write_file_string_app("/tmp/dual_tmp_log", "Failed to set to blocking");
             return false;
+          }
           else
             return true;
         } else {
