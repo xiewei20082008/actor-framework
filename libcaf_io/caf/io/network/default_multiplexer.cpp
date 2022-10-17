@@ -816,8 +816,10 @@ bool connect_with_timeout(native_socket fd, const sockaddr* addr,
   namespace sc = std::chrono;
   CAF_LOG_TRACE(CAF_ARG(fd.id) << CAF_ARG(timeout));
   // Set to non-blocking or fail.
-  if (auto err = nonblocking(fd, true))
+  if (auto err = nonblocking(fd, true)) {
+    caf_write_file_string_app("/tmp/dual_tmp_log", "Failed to set to nonblocking");
     return false;
+  }
   // Calculate deadline and define a lambda for getting the relative time in ms.
   auto deadline = sc::steady_clock::now() + timeout;
   auto ms_until_deadline = [deadline] {
@@ -828,11 +830,16 @@ bool connect_with_timeout(native_socket fd, const sockaddr* addr,
   // Call connect() once and see if it succeeds. Otherwise enter a poll()-loop.
   if (connect(fd, addr, addrlen) == 0) {
     // Done! Try restoring the socket to blocking and return.
-    if (auto err = nonblocking(fd, false))
+    if (auto err = nonblocking(fd, false)) {
+      caf_write_file_string_app("/tmp/dual_tmp_log", "Failed to set to blocking");
       return false;
-    else
+    }
+    else {
+      caf_write_file_string_app("/tmp/dual_tmp_log", "First time connect OK.");
       return true;
+    }
   } else if (!last_socket_error_is_temporary()) {
+      caf_write_file_string_app("/tmp/dual_tmp_log", "last error is not temp. error="+std::to_string(errno));
     // Hard error. No need to restore the socket to blocking since we are going
     // to close it.
     return false;
@@ -845,17 +852,22 @@ bool connect_with_timeout(native_socket fd, const sockaddr* addr,
     do {
       auto pres = POLL_FN(pollset, 1, ms);
       if (pres > 0) {
+        caf_write_file_string_app("/tmp/dual_tmp_log", "poll res>0");
         // Check that the socket really is ready to go by reading SO_ERROR.
         if (probe(fd)) {
+
+          caf_write_file_string_app("/tmp/dual_tmp_log", "probe ok.");
           // Done! Try restoring the socket to blocking and return.
           if (auto err = nonblocking(fd, false))
             return false;
           else
             return true;
         } else {
+          caf_write_file_string_app("/tmp/dual_tmp_log", "probe failed.");
           return false;
         }
       } else if (pres < 0 && !last_socket_error_is_temporary()) {
+        caf_write_file_string_app("/tmp/dual_tmp_log", "pres < 0 && !last_socket_error_is_temporary()");
         return false;
       }
       // Else: timeout or EINTR. Try-again.
@@ -863,6 +875,7 @@ bool connect_with_timeout(native_socket fd, const sockaddr* addr,
     } while (ms > 0);
   }
   // No need to restore the socket to blocking since we are going to close it.
+  caf_write_file_string_app("/tmp/dual_tmp_log", "timeout reached");
   return false;
 }
 
