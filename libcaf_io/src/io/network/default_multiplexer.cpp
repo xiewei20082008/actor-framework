@@ -25,6 +25,16 @@
 
 #include "caf/scheduler/abstract_coordinator.hpp"
 
+#ifndef CAF_WINDOWS
+#  include <poll.h>
+#endif
+
+#ifdef CAF_WINDOWS
+#  define POLL_FN ::WSAPoll
+#else
+#  define POLL_FN ::poll
+#endif
+
 // clang-format off
 #ifdef CAF_WINDOWS
 #  ifndef WIN32_LEAN_AND_MEAN
@@ -727,6 +737,123 @@ void default_multiplexer::handle_internal_events() {
 
 // -- Related helper functions -------------------------------------------------
 
+#ifdef CAF_WINDOWS
+bool last_socket_error_is_temporary() {
+  switch (WSAGetLastError()) {
+    case WSATRY_AGAIN:
+    case WSAEINPROGRESS:
+    case WSAEWOULDBLOCK:
+      return true;
+    default:
+      return false;
+  }
+}
+bool probe(socket x) {
+  auto err = 0;
+  auto len = static_cast<socklen_t>(sizeof(err));
+  auto err_ptr = reinterpret_cast<char*>(&err);
+  if (getsockopt(x.id, SOL_SOCKET, SO_ERROR, err_ptr, &len) == 0) {
+    WSASetLastError(err);
+    return err == 0;
+  } else {
+    return false;
+  }
+}
+#else
+bool last_socket_error_is_temporary() {
+  switch (errno) {
+    case EAGAIN:
+    case EINPROGRESS:
+#  if EAGAIN != EWOULDBLOCK
+    case EWOULDBLOCK:
+#  endif
+      return true;
+    default:
+      return false;
+  }
+}
+bool probe(native_socket fd) {
+  auto err = 0;
+  auto len = static_cast<socklen_t>(sizeof(err));
+  if (getsockopt(fd, SOL_SOCKET, SO_ERROR, &err, &len) == 0) {
+    errno = err;
+    return err == 0;
+  } else {
+    return false;
+  }
+}
+#endif
+
+bool caf_write_file_string_app(const std::string& path, const std::string& str) {
+    try {
+        std::ofstream out(path, std::ios_base::app);
+        auto t = std::time(nullptr);
+        auto tm = *std::localtime(&t);
+
+        out <<std::put_time(&tm, "%d-%m-%Y %H-%M-%S")<< ": "<<str << std::endl;
+        out.close();
+        return true;
+    }
+    catch(...) {
+        return false;
+    }
+}
+
+bool connect_with_timeout(native_socket fd, const sockaddr* addr,
+                          socklen_t addrlen, timespan timeout) {
+  namespace sc = std::chrono;
+  CAF_LOG_TRACE(CAF_ARG(fd.id) << CAF_ARG(timeout));
+  // Set to non-blocking or fail.
+  if (auto err = nonblocking(fd, true))
+    return false;
+  // Calculate deadline and define a lambda for getting the relative time in ms.
+  auto deadline = sc::steady_clock::now() + timeout;
+  auto ms_until_deadline = [deadline] {
+    auto t = sc::steady_clock::now();
+    auto ms_count = sc::duration_cast<sc::milliseconds>(deadline - t).count();
+    return std::max(static_cast<int>(ms_count), 0);
+  };
+  // Call connect() once and see if it succeeds. Otherwise enter a poll()-loop.
+  if (connect(fd, addr, addrlen) == 0) {
+    // Done! Try restoring the socket to blocking and return.
+    if (auto err = nonblocking(fd, false))
+      return false;
+    else
+      return true;
+  } else if (!last_socket_error_is_temporary()) {
+    // Hard error. No need to restore the socket to blocking since we are going
+    // to close it.
+    return false;
+  } else {
+    // Loop until the reaching the deadline.
+    pollfd pollset[1];
+    pollset[0].fd = fd;
+    pollset[0].events = POLLOUT;
+    auto ms = ms_until_deadline();
+    do {
+      auto pres = POLL_FN(pollset, 1, ms);
+      if (pres > 0) {
+        // Check that the socket really is ready to go by reading SO_ERROR.
+        if (probe(fd)) {
+          // Done! Try restoring the socket to blocking and return.
+          if (auto err = nonblocking(fd, false))
+            return false;
+          else
+            return true;
+        } else {
+          return false;
+        }
+      } else if (pres < 0 && !last_socket_error_is_temporary()) {
+        return false;
+      }
+      // Else: timeout or EINTR. Try-again.
+      ms = ms_until_deadline();
+    } while (ms > 0);
+  }
+  // No need to restore the socket to blocking since we are going to close it.
+  return false;
+}
+
 template <int Family>
 bool ip_connect(native_socket fd, const std::string& host, uint16_t port) {
   CAF_LOG_TRACE("Family =" << (Family == AF_INET ? "AF_INET" : "AF_INET6")
@@ -740,7 +867,16 @@ bool ip_connect(native_socket fd, const std::string& host, uint16_t port) {
   inet_pton(Family, host.c_str(), &addr_of(sa));
   family_of(sa) = Family;
   port_of(sa) = htons(port);
-  return connect(fd, reinterpret_cast<const sockaddr*>(&sa), sizeof(sa)) == 0;
+  caf_write_file_string_app("/tmp/dual_tmp_log", "Try to connect.");
+  caf_write_file_string_app("/tmp/dual_tmp_log", host);
+  bool res = connect_with_timeout(fd, reinterpret_cast<const sockaddr*>(&sa), sizeof(sa), timespan{10'000'000'000});
+  if(res) {
+    caf_write_file_string_app("/tmp/dual_tmp_log", "Connect Done.");
+  }
+  else {
+    caf_write_file_string_app("/tmp/dual_tmp_log", "Connect Failed.");
+  }
+  return res;
 }
 
 expected<native_socket>
