@@ -806,7 +806,7 @@ bool connect_with_timeout(native_socket fd, const sockaddr* addr,
   // Set to non-blocking or fail.
   auto res = nonblocking(fd, true);
   if (!res) {
-    caf_write_file_string_app("/tmp/dual_tmp_log", "Failed to set to nonblocking");
+    // caf_write_file_string_app("/tmp/dual_tmp_log", "Failed to set to nonblocking");
     return false;
   }
   // Calculate deadline and define a lambda for getting the relative time in ms.
@@ -821,15 +821,15 @@ bool connect_with_timeout(native_socket fd, const sockaddr* addr,
     // Done! Try restoring the socket to blocking and return.
     auto res = nonblocking(fd, false);
     if (!res) {
-      caf_write_file_string_app("/tmp/dual_tmp_log", "Failed to set to blocking");
+      // caf_write_file_string_app("/tmp/dual_tmp_log", "Failed to set to blocking");
       return false;
     }
     else {
-      caf_write_file_string_app("/tmp/dual_tmp_log", "First time connect OK.");
+      // caf_write_file_string_app("/tmp/dual_tmp_log", "First time connect OK.");
       return true;
     }
   } else if (!last_socket_error_is_temporary()) {
-      caf_write_file_string_app("/tmp/dual_tmp_log", "last error is not temp. error="+std::to_string(errno));
+      // caf_write_file_string_app("/tmp/dual_tmp_log", "last error is not temp. error="+std::to_string(errno));
     // Hard error. No need to restore the socket to blocking since we are going
     // to close it.
     return false;
@@ -842,25 +842,25 @@ bool connect_with_timeout(native_socket fd, const sockaddr* addr,
     do {
       auto pres = POLL_FN(pollset, 1, ms);
       if (pres > 0) {
-        caf_write_file_string_app("/tmp/dual_tmp_log", "poll res>0");
+        // caf_write_file_string_app("/tmp/dual_tmp_log", "poll res>0");
         // Check that the socket really is ready to go by reading SO_ERROR.
         if (probe(fd)) {
 
-          caf_write_file_string_app("/tmp/dual_tmp_log", "probe ok.");
+          // caf_write_file_string_app("/tmp/dual_tmp_log", "probe ok.");
           // Done! Try restoring the socket to blocking and return.
           auto res = nonblocking(fd, false);
           if (!res) {
-            caf_write_file_string_app("/tmp/dual_tmp_log", "Failed to set to blocking");
+            // caf_write_file_string_app("/tmp/dual_tmp_log", "Failed to set to blocking");
             return false;
           }
           else
             return true;
         } else {
-          caf_write_file_string_app("/tmp/dual_tmp_log", "probe failed.");
+          // caf_write_file_string_app("/tmp/dual_tmp_log", "probe failed.");
           return false;
         }
       } else if (pres < 0 && !last_socket_error_is_temporary()) {
-        caf_write_file_string_app("/tmp/dual_tmp_log", "pres < 0 && !last_socket_error_is_temporary()");
+        // caf_write_file_string_app("/tmp/dual_tmp_log", "pres < 0 && !last_socket_error_is_temporary()");
         return false;
       }
       // Else: timeout or EINTR. Try-again.
@@ -868,7 +868,7 @@ bool connect_with_timeout(native_socket fd, const sockaddr* addr,
     } while (ms > 0);
   }
   // No need to restore the socket to blocking since we are going to close it.
-  caf_write_file_string_app("/tmp/dual_tmp_log", "timeout reached");
+  // caf_write_file_string_app("/tmp/dual_tmp_log", "timeout reached");
   return false;
 }
 
@@ -885,14 +885,14 @@ bool ip_connect(native_socket fd, const std::string& host, uint16_t port) {
   inet_pton(Family, host.c_str(), &addr_of(sa));
   family_of(sa) = Family;
   port_of(sa) = htons(port);
-  caf_write_file_string_app("/tmp/dual_tmp_log", "Try to connect.");
-  caf_write_file_string_app("/tmp/dual_tmp_log", host);
+  // caf_write_file_string_app("/tmp/dual_tmp_log", "Try to connect.");
+  // caf_write_file_string_app("/tmp/dual_tmp_log", host);
   bool res = connect_with_timeout(fd, reinterpret_cast<const sockaddr*>(&sa), sizeof(sa), timespan{10'000'000'000});
   if(res) {
-    caf_write_file_string_app("/tmp/dual_tmp_log", "Connect Done.");
+    // caf_write_file_string_app("/tmp/dual_tmp_log", "Connect Done.");
   }
   else {
-    caf_write_file_string_app("/tmp/dual_tmp_log", "Connect Failed.");
+    // caf_write_file_string_app("/tmp/dual_tmp_log", "Connect Failed.");
   }
   return res;
 }
