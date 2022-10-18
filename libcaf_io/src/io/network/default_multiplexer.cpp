@@ -748,11 +748,11 @@ bool last_socket_error_is_temporary() {
       return false;
   }
 }
-bool probe(socket x) {
+bool probe(native_socket x) {
   auto err = 0;
   auto len = static_cast<socklen_t>(sizeof(err));
   auto err_ptr = reinterpret_cast<char*>(&err);
-  if (getsockopt(x.id, SOL_SOCKET, SO_ERROR, err_ptr, &len) == 0) {
+  if (getsockopt(x, SOL_SOCKET, SO_ERROR, err_ptr, &len) == 0) {
     WSASetLastError(err);
     return err == 0;
   } else {
