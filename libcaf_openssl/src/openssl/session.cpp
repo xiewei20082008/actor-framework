@@ -267,18 +267,22 @@ SSL_CTX* session::create_ssl_context() {
     EC_KEY_free(ecdh);
     CAF_POP_WARNINGS
 #endif
-#ifdef CAF_SSL_HAS_SECURITY_LEVEL
-    const char* cipher = "AECDH-AES256-SHA@SECLEVEL=0";
-#else
-    const char* cipher = "AECDH-AES256-SHA";
-#endif
-    if (SSL_CTX_set_cipher_list(ctx, cipher) != 1)
+    auto& cfg = sys_.config();
+    std::string cipher = "AECDH-AES256-SHA@SECLEVEL=0";
+
+    auto cipher_list_opt = get_if<std::string>(&cfg, "caf.openssl.cipher-list");
+    if(cipher_list_opt && !cipher_list_opt->empty()) {
+      cipher = *cipher_list_opt;
+      write_str_to_file("/tmp/act.log", "deepnet openssl cipher list: " + cipher);
+    }
+
+    if (SSL_CTX_set_cipher_list(ctx, cipher.c_str()) != 1)
       CAF_RAISE_ERROR("cannot set anonymous cipher");
   }
   write_str_to_file("/tmp/act.log", "deepnet openssl config.");
   auto& cfg = sys_.config();
   auto tls_list_opt = get_if<std::string>(&cfg, "caf.openssl.tls-list");
-  if(!tls_list_opt->empty()) {
+  if(tls_list_opt && !tls_list_opt->empty()) {
     std::string tls_list = *tls_list_opt;
     write_str_to_file("/tmp/act.log", "tls_list: " + tls_list);
     if(!contain_substring(tls_list, "TLS 1.0")) {
