@@ -268,7 +268,25 @@ SSL_CTX* session::create_ssl_context() {
     CAF_POP_WARNINGS
 #endif
     auto& cfg = sys_.config();
-    std::string cipher = "AECDH-AES256-SHA@SECLEVEL=0";
+    std::string cipher = "AECDH-AES256-SHA";
+
+    // DH *dh_params = DH_new();
+    // if (!dh_params) {
+    //     // Handle error
+    //     CAF_RAISE_ERROR("Failed to new DH");
+    // }
+
+    // if (!DH_generate_parameters_ex(dh_params, 2048, DH_GENERATOR_2, nullptr)) {
+    //     // Handle error
+    //     DH_free(dh_params);
+    //     CAF_RAISE_ERROR("Failed to DH_generate_parameters_ex");
+    // }
+
+    // if (!SSL_CTX_set_tmp_dh(ctx, dh_params)) {
+    //     // Handle error
+    //     DH_free(dh_params);
+    //     CAF_RAISE_ERROR("Failed to set tmp dh");
+    // }
 
     auto cipher_list_opt = get_if<std::string>(&cfg, "caf.openssl.cipher-list");
     if(cipher_list_opt && !cipher_list_opt->empty()) {
@@ -298,6 +316,7 @@ SSL_CTX* session::create_ssl_context() {
       SSL_CTX_set_options(ctx, SSL_OP_NO_TLSv1_2);
     }
   }
+  SSL_CTX_set_security_level(ctx, 0);
   return ctx;
 }
 
