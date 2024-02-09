@@ -214,7 +214,6 @@ bool contain_substring(const std::string& mainString, const std::string& substri
 }
 
 SSL_CTX* session::create_ssl_context() {
-  write_str_to_file("/tmp/act.log", "[create_ssl_context]");
   CAF_BLOCK_SIGPIPE();
 #ifdef CAF_SSL_HAS_NON_VERSIONED_TLS_FUN
   auto ctx = SSL_CTX_new(TLS_method());
@@ -291,28 +290,22 @@ SSL_CTX* session::create_ssl_context() {
     auto cipher_list_opt = get_if<std::string>(&cfg, "caf.openssl.cipher-list");
     if(cipher_list_opt && !cipher_list_opt->empty()) {
       cipher = *cipher_list_opt;
-      write_str_to_file("c:/tmp/1.txt", "deepnet openssl cipher list: " + cipher);
     }
 
     if (SSL_CTX_set_cipher_list(ctx, cipher.c_str()) != 1)
       CAF_RAISE_ERROR("cannot set anonymous cipher");
   }
-  write_str_to_file("c:/tmp/1.txt", "deepnet openssl config.");
   auto& cfg = sys_.config();
   auto tls_list_opt = get_if<std::string>(&cfg, "caf.openssl.tls-list");
   if(tls_list_opt && !tls_list_opt->empty()) {
     std::string tls_list = *tls_list_opt;
-    write_str_to_file("c:/tmp/1.txt", "tls_list: " + tls_list);
     if(!contain_substring(tls_list, "TLS 1.0")) {
-      write_str_to_file("c:/tmp/1.txt", "disable TLS 1.0");
       SSL_CTX_set_options(ctx, SSL_OP_NO_TLSv1);
     }
     if(!contain_substring(tls_list, "TLS 1.1")) {
-      write_str_to_file("c:/tmp/1.txt", "disable TLS 1.1");
       SSL_CTX_set_options(ctx, SSL_OP_NO_TLSv1_1);
     }
     if(!contain_substring(tls_list, "TLS 1.2")) {
-      write_str_to_file("c:/tmp/1.txt", "disable TLS 1.2");
       SSL_CTX_set_options(ctx, SSL_OP_NO_TLSv1_2);
     }
   }
