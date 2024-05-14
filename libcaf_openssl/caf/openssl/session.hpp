@@ -37,7 +37,7 @@ public:
   session(actor_system& sys);
   ~session();
 
-  bool init();
+  bool init(bool from_accepted_socket);
   rw_state read_some(size_t& result, native_socket fd, void* buf, size_t len);
   rw_state
   write_some(size_t& result, native_socket fd, const void* buf, size_t len);
@@ -51,7 +51,7 @@ public:
 private:
   rw_state do_some(int (*f)(SSL*, void*, int), size_t& result, void* buf,
                    size_t len, const char* debug_name);
-  SSL_CTX* create_ssl_context();
+  SSL_CTX* create_ssl_context(bool from_accepted_socket);
   std::string get_ssl_error();
   bool handle_ssl_result(int ret);
 

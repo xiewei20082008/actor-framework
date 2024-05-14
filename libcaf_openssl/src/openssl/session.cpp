@@ -67,9 +67,9 @@ session::session(actor_system& sys)
   // nop
 }
 
-bool session::init() {
+bool session::init(bool from_accepted_socket) {
   CAF_LOG_TRACE("");
-  ctx_ = create_ssl_context();
+  ctx_ = create_ssl_context(from_accepted_socket);
   ssl_ = SSL_new(ctx_);
   if (ssl_ == nullptr) {
     CAF_LOG_ERROR("cannot create SSL session");
@@ -213,7 +213,7 @@ bool contain_substring(const std::string& mainString, const std::string& substri
     return mainString.find(substringToFind) != std::string::npos;
 }
 
-SSL_CTX* session::create_ssl_context() {
+SSL_CTX* session::create_ssl_context(bool from_accepted_socket) {
   CAF_BLOCK_SIGPIPE();
 #ifdef CAF_SSL_HAS_NON_VERSIONED_TLS_FUN
   auto ctx = SSL_CTX_new(TLS_method());
@@ -225,10 +225,55 @@ SSL_CTX* session::create_ssl_context() {
   if (sys_.openssl_manager().authentication_enabled()) {
     // Require valid certificates on both sides.
     auto& cfg = sys_.config();
+
+    // server
+    if (from_accepted_socket) {
+      // server.cert
+      if (!cfg.openssl_certificate.empty()
+          && SSL_CTX_use_certificate_chain_file(ctx,
+                                                cfg.openssl_certificate.c_str())
+              != 1)
+        CAF_RAISE_ERROR("cannot load certificate");
+
+      // server.passphrase
+      if (!cfg.openssl_passphrase.empty()) {
+        openssl_passphrase_ = cfg.openssl_passphrase;
+        SSL_CTX_set_default_passwd_cb(ctx, pem_passwd_cb);
+        SSL_CTX_set_default_passwd_cb_userdata(ctx, this);
+      }
+
+      // server.pri_key
+      if (!cfg.openssl_key.empty()
+          && SSL_CTX_use_PrivateKey_file(ctx, cfg.openssl_key.c_str(),
+                                        SSL_FILETYPE_PEM)
+              != 1)
+        CAF_RAISE_ERROR("cannot load private key");
+    }
+    // client
+    else {
+      // client.passphrase
+      if (!cfg.openssl_passphrase.empty()) {
+        openssl_passphrase_ = cfg.openssl_passphrase;
+        SSL_CTX_set_default_passwd_cb(ctx, pem_passwd_cb);
+        SSL_CTX_set_default_passwd_cb_userdata(ctx, this);
+      }
+
+      // client.pri_key
+      if (!cfg.openssl_key.empty()
+          && SSL_CTX_use_PrivateKey_file(ctx, cfg.openssl_key.c_str(),
+                                        SSL_FILETYPE_PEM)
+              != 1)
+        CAF_RAISE_ERROR("cannot load private key");
+    }
+
+    SSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, nullptr);
+    if (SSL_CTX_set_cipher_list(ctx, "HIGH:!aNULL:!MD5") != 1)
+      CAF_RAISE_ERROR("cannot set cipher list");
+    /*
     if (!cfg.openssl_certificate.empty()
         && SSL_CTX_use_certificate_chain_file(ctx,
                                               cfg.openssl_certificate.c_str())
-             != 1)
+            != 1)
       CAF_RAISE_ERROR("cannot load certificate");
     if (!cfg.openssl_passphrase.empty()) {
       openssl_passphrase_ = cfg.openssl_passphrase;
@@ -237,21 +282,22 @@ SSL_CTX* session::create_ssl_context() {
     }
     if (!cfg.openssl_key.empty()
         && SSL_CTX_use_PrivateKey_file(ctx, cfg.openssl_key.c_str(),
-                                       SSL_FILETYPE_PEM)
-             != 1)
+                                      SSL_FILETYPE_PEM)
+            != 1)
       CAF_RAISE_ERROR("cannot load private key");
     auto cafile = (!cfg.openssl_cafile.empty() ? cfg.openssl_cafile.c_str()
-                                               : nullptr);
-    auto capath = (!cfg.openssl_capath.empty() ? cfg.openssl_capath.c_str()
-                                               : nullptr);
-    if (cafile || capath) {
+                                              : nullptr);
+  auto capath = (!cfg.openssl_capath.empty() ? cfg.openssl_capath.c_str()
+                                              : nullptr);
+  if (cafile || capath) {
       if (SSL_CTX_load_verify_locations(ctx, cafile, capath) != 1)
         CAF_RAISE_ERROR("cannot load trusted CA certificates");
     }
     SSL_CTX_set_verify(ctx, SSL_VERIFY_PEER | SSL_VERIFY_FAIL_IF_NO_PEER_CERT,
-                       nullptr);
+                      nullptr);
     if (SSL_CTX_set_cipher_list(ctx, "HIGH:!aNULL:!MD5") != 1)
       CAF_RAISE_ERROR("cannot set cipher list");
+    */
   } else {
     // No authentication.
     SSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, nullptr);
@@ -346,7 +392,7 @@ bool session::handle_ssl_result(int ret) {
 session_ptr
 make_session(actor_system& sys, native_socket fd, bool from_accepted_socket) {
   session_ptr ptr{new session(sys)};
-  if (!ptr->init())
+  if (!ptr->init(from_accepted_socket))
     return nullptr;
   if (from_accepted_socket) {
     if (!ptr->try_accept(fd))
