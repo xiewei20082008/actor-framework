@@ -9,7 +9,7 @@ endfunction()
 
 function(add_core_example folder name)
   add_example(${folder} ${name} ${ARGN})
-  target_link_libraries(${name} PRIVATE CAF::internal CAF::core)
+  target_link_libraries(${name} PRIVATE CAF::internal CAF::core CAF::openssl)
 endfunction()
 
 # -- examples for CAF::core ----------------------------------------------------
