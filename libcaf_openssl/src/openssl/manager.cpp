@@ -152,7 +152,9 @@ void manager::add_module_options(actor_system_config& cfg) {
     .add<std::string>("tls-list",
       "colon-separated list of OpenSSL TLS version to use")
     .add<std::string>("cipher-list",
-      "colon-separated list of OpenSSL cipher list to use");
+      "colon-separated list of OpenSSL cipher list to use, TLS 1.1 and TLS 1.2")
+    .add<std::string>("cipher-suite-list",
+      "colon-separated list of OpenSSL cipher list to use, TLS 1.3");
 }
 
 actor_system::module* manager::make(actor_system& sys, detail::type_list<>) {

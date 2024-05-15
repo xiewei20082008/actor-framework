@@ -223,7 +223,6 @@ void session::config_server_ssl_context(bool auth_enabled, SSL_CTX *ctx) {
                                               cfg.openssl_certificate.c_str())
             != 1)
       CAF_RAISE_ERROR("cannot load certificate");
-
     // server.passphrase
     if (!cfg.openssl_passphrase.empty()) {
       openssl_passphrase_ = cfg.openssl_passphrase;
@@ -247,6 +246,17 @@ void session::config_server_ssl_context(bool auth_enabled, SSL_CTX *ctx) {
 
     if (SSL_CTX_set_cipher_list(ctx, default_server_cipher_list.c_str()) != 1)
       CAF_RAISE_ERROR("cannot set cipher list");
+
+
+    auto cipher_suite_list_opt = get_if<std::string>(&cfg, "caf.openssl.cipher-suite-list");
+    if(cipher_suite_list_opt && !cipher_suite_list_opt->empty()) {
+      std::string server_cipher_suite_list = *cipher_suite_list_opt;
+
+      std::cout << "cihper suites: " << server_cipher_suite_list << std::endl;
+      if (SSL_CTX_set_ciphersuites(ctx, server_cipher_suite_list.c_str()) != 1) {
+          CAF_RAISE_ERROR("cannot set ciphersuites");
+      }
+    }
   }
   else {
     std::string cipher = "AECDH-AES256-SHA";
