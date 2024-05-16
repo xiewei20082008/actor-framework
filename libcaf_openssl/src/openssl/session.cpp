@@ -384,6 +384,9 @@ SSL_CTX* session::create_ssl_context(bool from_accepted_socket) {
     if(!contain_substring(tls_list, "TLS 1.2")) {
       SSL_CTX_set_options(ctx, SSL_OP_NO_TLSv1_2);
     }
+    if(!contain_substring(tls_list, "TLS 1.3")) {
+      SSL_CTX_set_options(ctx, SSL_OP_NO_TLSv1_3);
+    }
   }
   // SSL_CTX_set_security_level(ctx, 0);
   return ctx;
