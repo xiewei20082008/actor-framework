@@ -217,6 +217,22 @@ void session::config_server_ssl_context(bool auth_enabled, SSL_CTX *ctx) {
   auto& cfg = sys_.config();
   if (auth_enabled) {
     std::cout << "notes: [server] authentication_enabled" <<std::endl;
+    // server.ca
+
+    auto cafile = (!cfg.openssl_cafile.empty() ? cfg.openssl_cafile.c_str()
+                                              : nullptr);
+    auto capath = (!cfg.openssl_capath.empty() ? cfg.openssl_capath.c_str()
+                                                : nullptr);
+    if (cafile || capath) {
+      if (SSL_CTX_load_verify_locations(ctx, cafile, capath) != 1)
+        CAF_RAISE_ERROR("cannot load trusted CA certificates");
+      SSL_CTX_set_verify(ctx, SSL_VERIFY_PEER | SSL_VERIFY_FAIL_IF_NO_PEER_CERT,
+                        nullptr);
+    }
+    else {
+      SSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, nullptr);
+    }
+
     // server.cert
     if (!cfg.openssl_certificate.empty()
         && SSL_CTX_use_certificate_chain_file(ctx,
@@ -272,7 +288,42 @@ void session::config_client_ssl_context(bool auth_enabled, SSL_CTX *ctx) {
   if (SSL_CTX_set_cipher_list(ctx, "ALL") != 1)
     CAF_RAISE_ERROR("cannot set ALL cipher");
 
-  SSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, nullptr);
+
+  auto cafile = (!cfg.openssl_cafile.empty() ? cfg.openssl_cafile.c_str()
+                                            : nullptr);
+  auto capath = (!cfg.openssl_capath.empty() ? cfg.openssl_capath.c_str()
+                                              : nullptr);
+  if (cafile || capath) {
+    std::cout << "notes: client also peer verify" << std::endl;
+    if (SSL_CTX_load_verify_locations(ctx, cafile, capath) != 1)
+      CAF_RAISE_ERROR("cannot load trusted CA certificates");
+    SSL_CTX_set_verify(ctx, SSL_VERIFY_PEER | SSL_VERIFY_FAIL_IF_NO_PEER_CERT,
+                      nullptr);
+  }
+  else {
+    SSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, nullptr);
+  }
+
+  if (!cfg.openssl_certificate.empty()) {
+    if (SSL_CTX_use_certificate_chain_file(ctx,
+                                          cfg.openssl_certificate.c_str())
+        != 1) {
+      CAF_RAISE_ERROR("cannot load certificates");
+    }
+  }
+
+  if (!cfg.openssl_passphrase.empty()) {
+    openssl_passphrase_ = cfg.openssl_passphrase;
+    SSL_CTX_set_default_passwd_cb(ctx, pem_passwd_cb);
+    SSL_CTX_set_default_passwd_cb_userdata(ctx, this);
+  }
+
+  // client.pri_key
+  if (!cfg.openssl_key.empty()
+      && SSL_CTX_use_PrivateKey_file(ctx, cfg.openssl_key.c_str(),
+                                    SSL_FILETYPE_PEM)
+          != 1)
+    CAF_RAISE_ERROR("cannot load private key");
 
   // if (SSL_CTX_set_ciphersuites(ctx, "") != 1) {
   //     CAF_RAISE_ERROR("cannot set ciphersuites");
