@@ -1,3 +1,4 @@
+#include <cstdio>
 #include <string>
 #include <iostream>
 
@@ -5,41 +6,38 @@
 #include "caf/actor_system.hpp"
 #include "caf/caf_main.hpp"
 #include "caf/event_based_actor.hpp"
+#include "caf/openssl/all.hpp"
+#include "caf/openssl/remote_actor.hpp"
+#include "caf/scoped_actor.hpp"
+#include "caf/timespan.hpp"
+#include "caf/io/all.hpp"
 
 using namespace caf;
 
-behavior mirror(event_based_actor* self) {
-  // return the (initial) actor behavior
-  return {
-    // a handler for messages containing a single string
-    // that replies with a string
-    [=](const std::string& what) -> std::string {
-      // prints "Hello World!" via aout (thread-safe cout wrapper)
-      aout(self) << what << std::endl;
-      // reply "!dlroW olleH"
-      return std::string{what.rbegin(), what.rend()};
+
+struct dual_common_config : actor_system_config {
+    dual_common_config() {
+        load<caf::io::middleman>();
+        load<caf::openssl::manager>();
+        // set("caf.scheduler.policy", "sharing");
+        // set("caf.openssl.certificate", "server.crt");
+        // set("caf.openssl.key", "private.key");
+    }
+};
+
+void caf_main(actor_system& sys, const dual_common_config& cfg) {
+  auto a_exp = openssl::remote_actor<actor>(sys, "127.0.0.1", 13999);
+  auto a = *a_exp;
+
+  scoped_actor sc {sys};
+  sc->request(a, caf::infinite, 1).receive(
+    [=](int x) {
+      printf("received: %d", x);
     },
-  };
+    [=](caf::error &e) {
+
+    }
+  );
 }
 
-void hello_world(event_based_actor* self, const actor& buddy) {
-  // send "Hello World!" to our buddy ...
-  self->request(buddy, std::chrono::seconds(10), "Hello World!")
-    .then(
-      // ... wait up to 10s for a response ...
-      [=](const std::string& what) {
-        // ... and print it
-        aout(self) << what << std::endl;
-      });
-}
-
-void caf_main(actor_system& sys) {
-  // create a new actor that calls 'mirror()'
-  auto mirror_actor = sys.spawn(mirror);
-  // create another actor that calls 'hello_world(mirror_actor)';
-  sys.spawn(hello_world, mirror_actor);
-  // the system will wait until both actors are done before exiting the program
-}
-
-// creates a main function for us that calls our caf_main
-CAF_MAIN()
+CAF_MAIN(io::middleman, openssl::manager)
