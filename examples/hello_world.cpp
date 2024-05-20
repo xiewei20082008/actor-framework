@@ -21,12 +21,18 @@ struct dual_common_config : actor_system_config {
         load<caf::openssl::manager>();
         // set("caf.scheduler.policy", "sharing");
         // set("caf.openssl.certificate", "server.crt");
-        // set("caf.openssl.key", "private.key");
+        set("caf.openssl.cafile", "ca.crt");
+        set("caf.openssl.key", "client.key");
+        set("caf.openssl.certificate", "client.crt");
     }
 };
 
 void caf_main(actor_system& sys, const dual_common_config& cfg) {
   auto a_exp = openssl::remote_actor<actor>(sys, "127.0.0.1", 13999);
+  if(!a_exp) {
+    std::cout << caf::to_string(a_exp.error()) << std::endl;
+    return;
+  }
   auto a = *a_exp;
 
   scoped_actor sc {sys};

@@ -22,6 +22,7 @@ struct dual_common_config : actor_system_config {
         // set("caf.scheduler.policy", "sharing");
         set("caf.openssl.certificate", "server.crt");
         set("caf.openssl.key", "server.key");
+        set("caf.openssl.cafile", "ca.crt");
     }
 };
 
