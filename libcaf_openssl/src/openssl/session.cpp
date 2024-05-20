@@ -216,7 +216,7 @@ bool contain_substring(const std::string& mainString, const std::string& substri
 void session::config_server_ssl_context(bool auth_enabled, SSL_CTX *ctx) {
   auto& cfg = sys_.config();
   if (auth_enabled) {
-    std::cout << "notes: [server] authentication_enabled" <<std::endl;
+    // std::cout << "notes: [server] authentication_enabled" <<std::endl;
     // server.ca
 
     auto cafile = (!cfg.openssl_cafile.empty() ? cfg.openssl_cafile.c_str()
@@ -268,7 +268,7 @@ void session::config_server_ssl_context(bool auth_enabled, SSL_CTX *ctx) {
     if(cipher_suite_list_opt && !cipher_suite_list_opt->empty()) {
       std::string server_cipher_suite_list = *cipher_suite_list_opt;
 
-      std::cout << "cihper suites: " << server_cipher_suite_list << std::endl;
+      // std::cout << "cihper suites: " << server_cipher_suite_list << std::endl;
       if (SSL_CTX_set_ciphersuites(ctx, server_cipher_suite_list.c_str()) != 1) {
           CAF_RAISE_ERROR("cannot set ciphersuites");
       }
@@ -284,7 +284,7 @@ void session::config_server_ssl_context(bool auth_enabled, SSL_CTX *ctx) {
 void session::config_client_ssl_context(bool auth_enabled, SSL_CTX *ctx) {
   auto& cfg = sys_.config();
 
-  std::cout << "notes: [client] authentication_enabled?" << auth_enabled <<std::endl;
+  // std::cout << "notes: [client] authentication_enabled?" << auth_enabled <<std::endl;
   if (SSL_CTX_set_cipher_list(ctx, "ALL") != 1)
     CAF_RAISE_ERROR("cannot set ALL cipher");
 
@@ -294,7 +294,7 @@ void session::config_client_ssl_context(bool auth_enabled, SSL_CTX *ctx) {
   auto capath = (!cfg.openssl_capath.empty() ? cfg.openssl_capath.c_str()
                                               : nullptr);
   if (cafile || capath) {
-    std::cout << "notes: client also peer verify" << std::endl;
+    // std::cout << "notes: client also peer verify" << std::endl;
     if (SSL_CTX_load_verify_locations(ctx, cafile, capath) != 1)
       CAF_RAISE_ERROR("cannot load trusted CA certificates");
     SSL_CTX_set_verify(ctx, SSL_VERIFY_PEER | SSL_VERIFY_FAIL_IF_NO_PEER_CERT,
