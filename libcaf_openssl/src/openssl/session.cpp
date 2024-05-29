@@ -254,7 +254,7 @@ void session::config_server_ssl_context(bool auth_enabled, SSL_CTX *ctx) {
       CAF_RAISE_ERROR("cannot load private key");
 
     // server.cipher_list
-    std::string default_server_cipher_list = "HIGH:!aNULL:!MD5:!eNULL";
+    std::string default_server_cipher_list = "HIGH:!aNULL:!CBC:!MD5:!eNULL";
     auto cipher_list_opt = get_if<std::string>(&cfg, "caf.openssl.cipher-list");
     if(cipher_list_opt && !cipher_list_opt->empty()) {
       default_server_cipher_list = *cipher_list_opt;
