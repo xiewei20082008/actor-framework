@@ -174,4 +174,18 @@ manager::manager(actor_system& sys) : system_(sys) {
   // nop
 }
 
+std::string g_caflib_connection_error;
+std::mutex g_caflib_connection_error_m;
+
+
+void set_caflib_connection_error(std::string_view err) {
+  std::scoped_lock<std::mutex> lk(g_caflib_connection_error_m);
+  g_caflib_connection_error = err;
+}
+
+std::string get_caflib_connection_error() {
+  std::scoped_lock<std::mutex> lk(g_caflib_connection_error_m);
+  return g_caflib_connection_error;
+}
+
 } // namespace caf::openssl

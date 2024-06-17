@@ -3,6 +3,8 @@
 // https://github.com/actor-framework/actor-framework/blob/master/LICENSE.
 
 #include "caf/openssl/session.hpp"
+#include "caf/io/network/native_socket.hpp"
+#include "caf/logger.hpp"
 
 CAF_PUSH_WARNINGS
 #include <openssl/err.h>
@@ -13,6 +15,8 @@ CAF_POP_WARNINGS
 #include "caf/io/network/default_multiplexer.hpp"
 
 #include "caf/openssl/manager.hpp"
+
+
 
 // On Linux we need to block SIGPIPE whenever we access OpenSSL functions.
 // Unfortunately there's no sane way to configure OpenSSL properly.
@@ -163,7 +167,7 @@ bool session::try_connect(native_socket fd) {
   if (ret == 1)
     return true;
   connecting_ = true;
-  return handle_ssl_result(ret);
+  return handle_ssl_result(ret, fd);
 }
 
 bool session::try_accept(native_socket fd) {
@@ -175,7 +179,7 @@ bool session::try_accept(native_socket fd) {
   if (ret == 1)
     return true;
   accepting_ = true;
-  return handle_ssl_result(ret);
+  return handle_ssl_result(ret, fd);
 }
 
 bool session::must_read_more(native_socket, size_t threshold) {
@@ -455,8 +459,14 @@ std::string session::get_ssl_error() {
   return msg;
 }
 
-bool session::handle_ssl_result(int ret) {
+
+
+bool session::handle_ssl_result(int ret, native_socket fd) {
   auto err = SSL_get_error(ssl_, ret);
+  std::string err_string = get_ssl_error();
+
+
+  CAF_LOG_ERROR("[session::handle_ssl_result] err=" << err<<",err_msg="<<err_string);
   switch (err) {
     case SSL_ERROR_WANT_READ:
       CAF_LOG_DEBUG("Nonblocking call to SSL returned want_read");
@@ -467,6 +477,17 @@ bool session::handle_ssl_result(int ret) {
     case SSL_ERROR_ZERO_RETURN: // Regular remote connection shutdown.
     case SSL_ERROR_SYSCALL:     // Socket connection closed.
       return false;
+    case SSL_ERROR_SSL:
+    {
+      if(!fd) {
+        return false;
+      }
+      // auto addr = caf::io::network::remote_addr_of_fd(fd);
+      // auto port = caf::io::network::remote_port_of_fd(fd);
+      // std::string err_msg = (caf::logger::line_builder{}<<"[SSL_ERROR_SSL] client=" << addr<<":"<<port).get();
+      // caf::openssl::set_caflib_connection_error(err_msg);
+      return false;
+    }
     default: // Other error
       CAF_LOG_INFO("SSL call failed:" << get_ssl_error());
       return false;

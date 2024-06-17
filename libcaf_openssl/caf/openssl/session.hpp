@@ -56,7 +56,7 @@ private:
   void config_server_ssl_context(bool auth_enabled, SSL_CTX *ctx);
   void config_client_ssl_context(bool auth_enabled, SSL_CTX *ctx);
   std::string get_ssl_error();
-  bool handle_ssl_result(int ret);
+  bool handle_ssl_result(int ret, native_socket fd=0);
 
   actor_system& sys_;
   SSL_CTX* ctx_;
