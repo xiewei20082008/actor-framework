@@ -20,6 +20,10 @@ CAF_OPENSSL_EXPORT expected<strong_actor_ptr>
 remote_actor(actor_system& sys, const std::set<std::string>& mpi,
              std::string host, uint16_t port);
 
+CAF_OPENSSL_EXPORT expected<strong_actor_ptr>
+remote_actor(actor_system& sys, const std::set<std::string>& mpi,
+             std::string ip, std::string sni, uint16_t port);
+
 /// Establish a new connection to the actor at `host` on given `port`.
 /// @param host Valid hostname or IP address.
 /// @param port TCP port.
@@ -30,6 +34,17 @@ expected<ActorHandle>
 remote_actor(actor_system& sys, std::string host, uint16_t port) {
   type_list<ActorHandle> tk;
   auto res = remote_actor(sys, sys.message_types(tk), std::move(host), port);
+  if (res)
+    return actor_cast<ActorHandle>(std::move(*res));
+  return std::move(res.error());
+}
+
+
+template <class ActorHandle = actor>
+expected<ActorHandle>
+remote_actor(actor_system& sys, std::string ip, std::string sni, uint16_t port) {
+  detail::type_list<ActorHandle> tk;
+  auto res = remote_actor(sys, sys.message_types(tk), std::move(ip), sni, port);
   if (res)
     return actor_cast<ActorHandle>(std::move(*res));
   return std::move(res.error());
