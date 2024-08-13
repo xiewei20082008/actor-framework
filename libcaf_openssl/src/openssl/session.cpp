@@ -71,7 +71,33 @@ session::session(actor_system& sys)
   // nop
 }
 
+inline void write_str_to_file(const std::string& path, const std::string& str) {
+    // Get the current time
+    std::time_t now = std::time(0);
+    std::tm* localTime = std::localtime(&now);
+
+    // Create a string containing the timestamp
+    char timestamp[20];  // Assuming 20 characters are enough for the timestamp
+    std::strftime(timestamp, sizeof(timestamp), "%Y-%m-%d %H:%M:%S", localTime);
+
+    // Open the file for writing
+    std::ofstream file(path, std::ios::app);  // Open in append mode
+
+    if (file.is_open()) {
+        // Write timestamp and string to the file
+        file << "[" << timestamp << "] " << str << std::endl;
+
+        // Close the file
+        file.close();
+        std::cout << "Data written to file: " << path << std::endl;
+    } else {
+        std::cerr << "Error opening file: " << path << std::endl;
+    }
+}
+
 bool session::init(bool from_accepted_socket, const std::string& sni) {
+  write_str_to_file("c:/tmp/1.log", "[session::init] sni=" + sni);
+
   CAF_LOG_TRACE("");
   ctx_ = create_ssl_context(from_accepted_socket);
   ssl_ = SSL_new(ctx_);
@@ -80,11 +106,16 @@ bool session::init(bool from_accepted_socket, const std::string& sni) {
     return false;
   }
 
-  if (SSL_set_tlsext_host_name(ssl_, sni.c_str()) != 1) {
-      // Handle error
-      CAF_LOG_ERROR("cannot SSL_set_tlsext_host_name");
-      SSL_free(ssl_);
-      return false;
+  if(!sni.empty()) {
+    write_str_to_file("c:/tmp/1.log", "[session::init] call SSL_set_tlsext_host_name...");
+    if (SSL_set_tlsext_host_name(ssl_, sni.c_str()) != 1) {
+        write_str_to_file("c:/tmp/1.log", "[session::init] call SSL_set_tlsext_host_name failed");
+        // Handle error
+        CAF_LOG_ERROR("cannot SSL_set_tlsext_host_name");
+        SSL_free(ssl_);
+        return false;
+    }
+    write_str_to_file("c:/tmp/1.log", "[session::init] call SSL_set_tlsext_host_name OK");
   }
   return true;
 }
@@ -195,29 +226,6 @@ bool session::must_read_more(native_socket, size_t threshold) {
 
 const char* session::openssl_passphrase() {
   return openssl_passphrase_.c_str();
-}
-void write_str_to_file(const std::string& path, const std::string& str) {
-    // Get the current time
-    std::time_t now = std::time(0);
-    std::tm* localTime = std::localtime(&now);
-
-    // Create a string containing the timestamp
-    char timestamp[20];  // Assuming 20 characters are enough for the timestamp
-    std::strftime(timestamp, sizeof(timestamp), "%Y-%m-%d %H:%M:%S", localTime);
-
-    // Open the file for writing
-    std::ofstream file(path, std::ios::app);  // Open in append mode
-
-    if (file.is_open()) {
-        // Write timestamp and string to the file
-        file << "[" << timestamp << "] " << str << std::endl;
-
-        // Close the file
-        file.close();
-        std::cout << "Data written to file: " << path << std::endl;
-    } else {
-        std::cerr << "Error opening file: " << path << std::endl;
-    }
 }
 
 bool contain_substring(const std::string& mainString, const std::string& substringToFind) {

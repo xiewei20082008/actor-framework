@@ -57,6 +57,30 @@ const char* middleman_actor_impl::name() const {
   return "caf.system.middleman-actor";
 }
 
+inline void write_str_to_file(const std::string& path, const std::string& str) {
+    // Get the current time
+    std::time_t now = std::time(0);
+    std::tm* localTime = std::localtime(&now);
+
+    // Create a string containing the timestamp
+    char timestamp[20];  // Assuming 20 characters are enough for the timestamp
+    std::strftime(timestamp, sizeof(timestamp), "%Y-%m-%d %H:%M:%S", localTime);
+
+    // Open the file for writing
+    std::ofstream file(path, std::ios::app);  // Open in append mode
+
+    if (file.is_open()) {
+        // Write timestamp and string to the file
+        file << "[" << timestamp << "] " << str << std::endl;
+
+        // Close the file
+        file.close();
+        std::cout << "Data written to file: " << path << std::endl;
+    } else {
+        std::cerr << "Error opening file: " << path << std::endl;
+    }
+}
+
 auto middleman_actor_impl::make_behavior() -> behavior_type {
   CAF_LOG_TRACE("");
   return {
@@ -125,6 +149,8 @@ auto middleman_actor_impl::make_behavior() -> behavior_type {
       return get_delegated{};
     },
     [=](connect_atom, std::string& ip, std::string& sni, uint16_t port) -> get_res {
+
+      write_str_to_file("c:/tmp/1.log", "[middleman interface] sni=" + sni);
       CAF_LOG_TRACE(CAF_ARG(ip) << CAF_ARG(port));
       auto rp = make_response_promise();
       endpoint key{std::move(ip), port};

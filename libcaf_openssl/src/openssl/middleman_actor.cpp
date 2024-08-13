@@ -226,6 +226,29 @@ public:
   }
 };
 
+inline void write_str_to_file(const std::string& path, const std::string& str) {
+    // Get the current time
+    std::time_t now = std::time(0);
+    std::tm* localTime = std::localtime(&now);
+
+    // Create a string containing the timestamp
+    char timestamp[20];  // Assuming 20 characters are enough for the timestamp
+    std::strftime(timestamp, sizeof(timestamp), "%Y-%m-%d %H:%M:%S", localTime);
+
+    // Open the file for writing
+    std::ofstream file(path, std::ios::app);  // Open in append mode
+
+    if (file.is_open()) {
+        // Write timestamp and string to the file
+        file << "[" << timestamp << "] " << str << std::endl;
+
+        // Close the file
+        file.close();
+        std::cout << "Data written to file: " << path << std::endl;
+    } else {
+        std::cerr << "Error opening file: " << path << std::endl;
+    }
+}
 class middleman_actor_impl : public io::middleman_actor_impl {
 public:
   middleman_actor_impl(actor_config& cfg, actor default_broker)
@@ -240,12 +263,14 @@ public:
 protected:
   expected<io::scribe_ptr>
   connect(const std::string& host, uint16_t port, const std::string& sni="") override {
+
+    write_str_to_file("c:/tmp/1.log", "[openssl middleman::connect] sni=" + sni);
     CAF_LOG_TRACE(CAF_ARG(host) << CAF_ARG(port));
     auto fd = io::network::new_tcp_connection(host, port);
     if (!fd)
       return std::move(fd.error());
     io::network::nonblocking(*fd, true);
-    auto sssn = make_session(system(), *fd, false, host);
+    auto sssn = make_session(system(), *fd, false, sni);
     if (!sssn) {
       CAF_LOG_ERROR("Unable to create SSL session for connection");
       return sec::cannot_connect_to_node;
