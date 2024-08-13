@@ -245,7 +245,7 @@ protected:
     if (!fd)
       return std::move(fd.error());
     io::network::nonblocking(*fd, true);
-    auto sssn = make_session(system(), *fd, false);
+    auto sssn = make_session(system(), *fd, false, host);
     if (!sssn) {
       CAF_LOG_ERROR("Unable to create SSL session for connection");
       return sec::cannot_connect_to_node;

@@ -35,4 +35,24 @@ remote_actor(actor_system& sys, const std::set<std::string>& mpi,
   return sec::unexpected_actor_messaging_interface;
 }
 
+
+expected<strong_actor_ptr>
+remote_actor(actor_system& sys, const std::set<std::string>& mpi,
+             std::string ip, std::string sni, uint16_t port) {
+  CAF_LOG_TRACE(CAF_ARG(mpi) << CAF_ARG(host) << CAF_ARG(port));
+  expected<strong_actor_ptr> res{strong_actor_ptr{nullptr}};
+  auto f = make_function_view(sys.openssl_manager().actor_handle());
+  auto x = f(connect_atom_v, std::move(ip), std::move(sni), port);
+  if (!x)
+    return std::move(x.error());
+  auto& tup = *x;
+  auto& ptr = get<1>(tup);
+  if (!ptr)
+    return sec::no_actor_published_at_port;
+  auto& found_mpi = get<2>(tup);
+  if (sys.assignable(found_mpi, mpi))
+    return std::move(ptr);
+  return sec::unexpected_actor_messaging_interface;
+}
+
 } // namespace caf::openssl
