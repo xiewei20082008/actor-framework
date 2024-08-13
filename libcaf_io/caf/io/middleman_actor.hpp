@@ -80,6 +80,9 @@ using middleman_actor = typed_actor<
   replies_to<connect_atom, std::string,
              uint16_t>::with<node_id, strong_actor_ptr, std::set<std::string>>,
 
+  replies_to<connect_atom, std::string, std::string,
+             uint16_t>::with<node_id, strong_actor_ptr, std::set<std::string>>,
+
   reacts_to<unpublish_atom, actor_addr, uint16_t>,
 
   reacts_to<close_atom, uint16_t>,
