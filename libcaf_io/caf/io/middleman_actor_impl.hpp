@@ -49,7 +49,7 @@ public:
 protected:
   /// Tries to connect to given `host` and `port`. The default implementation
   /// calls `system().middleman().backend().new_tcp_scribe(host, port)`.
-  virtual expected<scribe_ptr> connect(const std::string& host, uint16_t port);
+  virtual expected<scribe_ptr> connect(const std::string& host, uint16_t port, const std::string& sni="");
 
   /// Tries to connect to given `host` and `port`. The default implementation
   /// calls `system().middleman().backend().new_udp`.

@@ -71,7 +71,7 @@ session::session(actor_system& sys)
   // nop
 }
 
-bool session::init(bool from_accepted_socket, const std::string& hostname) {
+bool session::init(bool from_accepted_socket, const std::string& sni) {
   CAF_LOG_TRACE("");
   ctx_ = create_ssl_context(from_accepted_socket);
   ssl_ = SSL_new(ctx_);
@@ -80,7 +80,7 @@ bool session::init(bool from_accepted_socket, const std::string& hostname) {
     return false;
   }
 
-  if (SSL_set_tlsext_host_name(ssl_, hostname.c_str()) != 1) {
+  if (SSL_set_tlsext_host_name(ssl_, sni.c_str()) != 1) {
       // Handle error
       CAF_LOG_ERROR("cannot SSL_set_tlsext_host_name");
       SSL_free(ssl_);
@@ -502,9 +502,9 @@ bool session::handle_ssl_result(int ret, native_socket fd) {
 }
 
 session_ptr
-make_session(actor_system& sys, native_socket fd, bool from_accepted_socket, const std::string& hostname) {
+make_session(actor_system& sys, native_socket fd, bool from_accepted_socket, const std::string& sni) {
   session_ptr ptr{new session(sys)};
-  if (!ptr->init(from_accepted_socket))
+  if (!ptr->init(from_accepted_socket, sni))
     return nullptr;
   if (from_accepted_socket) {
     if (!ptr->try_accept(fd))

@@ -71,6 +71,6 @@ using session_ptr = std::unique_ptr<session>;
 
 /// @relates session
 CAF_OPENSSL_EXPORT session_ptr make_session(actor_system& sys, native_socket fd,
-                                            bool from_accepted_socket, const std::string& hostname="");
+                                            bool from_accepted_socket, const std::string& sni="");
 
 } // namespace caf::openssl
