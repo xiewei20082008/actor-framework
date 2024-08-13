@@ -25,11 +25,4 @@ remote_actor(actor_system& sys, std::string host, uint16_t port) {
   return sys.middleman().remote_actor<ActorHandle>(std::move(host), port);
 }
 
-
-template <class ActorHandle = actor>
-expected<ActorHandle>
-remote_actor(actor_system& sys, std::string ip, std::string sni, uint16_t port) {
-  return sys.middleman().remote_actor<ActorHandle>(std::move(ip), port);
-}
-
 } // namespace caf::io
