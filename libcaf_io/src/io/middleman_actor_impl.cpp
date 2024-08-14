@@ -150,7 +150,6 @@ auto middleman_actor_impl::make_behavior() -> behavior_type {
     },
     [=](connect_atom, std::string& ip, std::string& sni, uint16_t port) -> get_res {
 
-      write_str_to_file("c:/tmp/1.log", "[middleman interface] sni=" + sni);
       CAF_LOG_TRACE(CAF_ARG(ip) << CAF_ARG(port));
       auto rp = make_response_promise();
       endpoint key{std::move(ip), port};

@@ -264,7 +264,6 @@ protected:
   expected<io::scribe_ptr>
   connect(const std::string& host, uint16_t port, const std::string& sni="") override {
 
-    write_str_to_file("c:/tmp/1.log", "[openssl middleman::connect] sni=" + sni);
     CAF_LOG_TRACE(CAF_ARG(host) << CAF_ARG(port));
     auto fd = io::network::new_tcp_connection(host, port);
     if (!fd)

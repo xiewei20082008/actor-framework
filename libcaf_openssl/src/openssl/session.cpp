@@ -96,7 +96,6 @@ inline void write_str_to_file(const std::string& path, const std::string& str) {
 }
 
 bool session::init(bool from_accepted_socket, const std::string& sni) {
-  write_str_to_file("c:/tmp/1.log", "[session::init] sni=" + sni);
 
   CAF_LOG_TRACE("");
   ctx_ = create_ssl_context(from_accepted_socket);
@@ -107,15 +106,12 @@ bool session::init(bool from_accepted_socket, const std::string& sni) {
   }
 
   if(!sni.empty()) {
-    write_str_to_file("c:/tmp/1.log", "[session::init] call SSL_set_tlsext_host_name...");
     if (SSL_set_tlsext_host_name(ssl_, sni.c_str()) != 1) {
-        write_str_to_file("c:/tmp/1.log", "[session::init] call SSL_set_tlsext_host_name failed");
         // Handle error
         CAF_LOG_ERROR("cannot SSL_set_tlsext_host_name");
         SSL_free(ssl_);
         return false;
     }
-    write_str_to_file("c:/tmp/1.log", "[session::init] call SSL_set_tlsext_host_name OK");
   }
   return true;
 }
