@@ -128,6 +128,69 @@ auto middleman_actor_impl::make_behavior() -> behavior_type {
           });
       return get_delegated{};
     },
+    [this](connect_atom, std::string& hostname, std::string& sni, uint16_t port) -> get_res {
+      auto lg = log::io::trace("hostname = {}, port = {}", hostname, port);
+      auto rp = make_response_promise();
+      endpoint key{std::move(hostname), port};
+      // respond immediately if endpoint is cached
+      auto x = cached_tcp(key);
+      if (x) {
+        log::io::debug("found cached entry x = {}", *x);
+        rp.deliver(get<0>(*x), get<1>(*x), get<2>(*x));
+        return get_delegated{};
+      }
+      // attach this promise to a pending request if possible
+      auto rps = pending(key);
+      if (rps) {
+        log::io::debug("attach to pending request");
+        rps->emplace_back(std::move(rp));
+        return get_delegated{};
+      }
+      // connect to endpoint and initiate handhsake etc.
+      auto r = connect(key.first, port);
+      if (!r) {
+        rp.deliver(std::move(r.error()));
+        return get_delegated{};
+      }
+      auto& ptr = *r;
+      std::vector<response_promise> tmp{std::move(rp)};
+      pending_.emplace(key, std::move(tmp));
+      mail(connect_atom_v, std::move(ptr), port)
+        .request(broker_, infinite)
+        .then(
+          [this, key](node_id& nid, strong_actor_ptr& addr, mpi_set& sigs) {
+            auto i = pending_.find(key);
+            if (i == pending_.end())
+              return;
+            if (nid && addr) {
+              monitor(addr, [this, addr](const error&) {
+                auto i = cached_tcp_.begin();
+                auto e = cached_tcp_.end();
+                while (i != e) {
+                  if (get<1>(i->second) == addr)
+                    i = cached_tcp_.erase(i);
+                  else
+                    ++i;
+                }
+              });
+              cached_tcp_.emplace(key, std::make_tuple(nid, addr, sigs));
+            }
+            auto res = make_message(std::move(nid), std::move(addr),
+                                    std::move(sigs));
+            for (auto& promise : i->second)
+              promise.deliver(res);
+            pending_.erase(i);
+          },
+          [this, key](error& err) {
+            auto i = pending_.find(key);
+            if (i == pending_.end())
+              return;
+            for (auto& promise : i->second)
+              promise.deliver(err);
+            pending_.erase(i);
+          });
+      return get_delegated{};
+    },
     [this](unpublish_atom atm, actor_addr addr, uint16_t p) -> del_res {
       auto lg = log::io::trace("");
       std::ignore = mail(atm, std::move(addr), p).delegate(broker_);

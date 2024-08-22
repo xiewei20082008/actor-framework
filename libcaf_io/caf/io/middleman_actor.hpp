@@ -79,7 +79,8 @@ using middleman_actor = typed_actor< //
 
   result<node_id, strong_actor_ptr, std::set<std::string>>(
     connect_atom, std::string, uint16_t),
-
+  result<node_id, strong_actor_ptr, std::set<std::string>>(
+    connect_atom, std::string, std::string, uint16_t),
   result<void>(unpublish_atom, actor_addr, uint16_t),
 
   result<void>(close_atom, uint16_t),
