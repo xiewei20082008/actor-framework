@@ -113,8 +113,8 @@ void manager::init(actor_system_config&) {
   SSL_load_error_strings();
   if (authentication_enabled()) {
     auto& cfg = system().config();
-    if (!is_nonempty_string(cfg, "caf.openssl.certificate"))
-      CAF_RAISE_ERROR("No certificate configured for SSL endpoint");
+    // if (!is_nonempty_string(cfg, "caf.openssl.certificate"))
+    //   CAF_RAISE_ERROR("No certificate configured for SSL endpoint");
     if (!is_nonempty_string(cfg, "caf.openssl.key"))
       CAF_RAISE_ERROR("No private key configured for SSL endpoint");
   }
