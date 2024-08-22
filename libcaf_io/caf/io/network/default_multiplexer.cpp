@@ -796,20 +796,6 @@ bool probe(native_socket fd) {
 }
 #endif
 
-bool caf_write_file_string_app(const std::string& path, const std::string& str) {
-    try {
-        std::ofstream out(path, std::ios_base::app);
-        auto t = std::time(nullptr);
-        auto tm = *std::localtime(&t);
-
-        out <<std::put_time(&tm, "%d-%m-%Y %H-%M-%S")<< ": "<<str << std::endl;
-        out.close();
-        return true;
-    }
-    catch(...) {
-        return false;
-    }
-}
 
 bool connect_with_timeout(native_socket fd, const sockaddr* addr,
                           socklen_t addrlen, timespan timeout) {

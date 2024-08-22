@@ -52,6 +52,9 @@ private:
   rw_state do_some(int (*f)(SSL*, void*, int), size_t& result, void* buf,
                    size_t len, const char* debug_name);
   SSL_CTX* create_ssl_context(bool from_accepted_socket, const std::string& hostname="");
+  void config_server_ssl_context(bool auth_enabled, SSL_CTX *ctx);
+  void config_client_ssl_context(bool auth_enabled, SSL_CTX *ctx);
+
   std::string get_ssl_error();
   bool handle_ssl_result(int ret);
 
@@ -68,6 +71,6 @@ using session_ptr = std::unique_ptr<session>;
 
 /// @relates session
 CAF_OPENSSL_EXPORT session_ptr make_session(actor_system& sys, native_socket fd,
-                                            bool from_accepted_socket);
+                                            bool from_accepted_socket, const std::string& sni="");
 
 } // namespace caf::openssl
