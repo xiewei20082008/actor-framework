@@ -147,7 +147,7 @@ auto middleman_actor_impl::make_behavior() -> behavior_type {
         return get_delegated{};
       }
       // connect to endpoint and initiate handhsake etc.
-      auto r = connect(key.first, port);
+      auto r = connect(key.first, port, sni);
       if (!r) {
         rp.deliver(std::move(r.error()));
         return get_delegated{};
@@ -307,8 +307,8 @@ middleman_actor_impl::pending(const endpoint& ep) {
   return nullptr;
 }
 
-expected<scribe_ptr> middleman_actor_impl::connect(const std::string& host,
-                                                   uint16_t port) {
+expected<scribe_ptr>
+middleman_actor_impl::connect(const std::string& host, uint16_t port, const std::string& sni) {
   return system().middleman().backend().new_tcp_scribe(host, port);
 }
 

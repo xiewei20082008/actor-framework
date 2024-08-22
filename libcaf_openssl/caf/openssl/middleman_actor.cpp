@@ -239,8 +239,8 @@ public:
   }
 
 protected:
-  expected<io::scribe_ptr> connect(const std::string& host,
-                                   uint16_t port) override {
+  expected<io::scribe_ptr>
+  connect(const std::string& host, uint16_t port, const std::string& sni="") override {
     auto lg = log::openssl::trace("host = {}, port = {}", host, port);
     auto fd = io::network::new_tcp_connection(host, port);
     if (!fd)

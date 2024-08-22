@@ -75,7 +75,6 @@ session::session(actor_system& sys)
 }
 
 bool session::init(bool from_accepted_socket, const std::string& sni) {
-
   auto lg = log::openssl::trace("");
   ctx_ = create_ssl_context(from_accepted_socket);
   ssl_ = SSL_new(ctx_);
@@ -400,7 +399,6 @@ bool session::handle_ssl_result(int ret) {
 
 session_ptr
 make_session(actor_system& sys, native_socket fd, bool from_accepted_socket, const std::string& sni) {
-
   session_ptr ptr{new session(sys)};
   if (!ptr->init(from_accepted_socket, sni))
     return nullptr;
