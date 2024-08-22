@@ -40,10 +40,11 @@ remote_actor(actor_system& sys, std::string host, uint16_t port) {
 }
 
 
+
 template <class ActorHandle = actor>
 expected<ActorHandle>
 remote_actor(actor_system& sys, std::string ip, std::string sni, uint16_t port) {
-  detail::type_list<ActorHandle> tk;
+  type_list<ActorHandle> tk;
   auto res = remote_actor(sys, sys.message_types(tk), std::move(ip), sni, port);
   if (res)
     return actor_cast<ActorHandle>(std::move(*res));
