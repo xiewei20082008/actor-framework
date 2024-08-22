@@ -74,16 +74,27 @@ session::session(actor_system& sys)
   // nop
 }
 
-bool session::init() {
+bool session::init(bool from_accepted_socket, const std::string& sni) {
+
   auto lg = log::openssl::trace("");
-  ctx_ = create_ssl_context();
+  ctx_ = create_ssl_context(from_accepted_socket);
   ssl_ = SSL_new(ctx_);
   if (ssl_ == nullptr) {
     log::system::error("cannot create SSL session");
     return false;
   }
+
+  if(!sni.empty()) {
+    if (SSL_set_tlsext_host_name(ssl_, sni.c_str()) != 1) {
+        // Handle error
+      log::system::error("cannot SSL_set_tlsext_host_name");
+      SSL_free(ssl_);
+      return false;
+    }
+  }
   return true;
 }
+
 
 session::~session() {
   SSL_free(ssl_);
@@ -196,88 +207,161 @@ bool contain_substring(const std::string& mainString, const std::string& substri
     return mainString.find(substringToFind) != std::string::npos;
 }
 
-SSL_CTX* session::create_ssl_context() {
-  write_str_to_file("/tmp/act.log", "[create_ssl_context]");
-  CAF_BLOCK_SIGPIPE();
-#ifdef CAF_SSL_HAS_NON_VERSIONED_TLS_FUN
-  auto ctx = SSL_CTX_new(TLS_method());
-#else
-  auto ctx = SSL_CTX_new(TLSv1_2_method());
-#endif
-  if (!ctx)
-    CAF_RAISE_ERROR("cannot create OpenSSL context");
+void session::config_server_ssl_context(bool auth_enabled, SSL_CTX *ctx) {
   auto& cfg = sys_.config();
-  auto key = get_or(cfg, "caf.openssl.key", ""sv);
-  auto certificate = get_or(cfg, "caf.openssl.certificate", ""sv);
-  openssl_passphrase_ = get_or(cfg, "caf.openssl.passphrase", ""sv);
-  auto capath = get_or(cfg, "caf.openssl.capath", ""sv);
-  auto cafile = get_or(cfg, "caf.openssl.cafile", ""sv);
-  if (sys_.openssl_manager().authentication_enabled()) {
-    // Require valid certificates on both sides.
-    if (!certificate.empty()
-        && SSL_CTX_use_certificate_chain_file(ctx, certificate.c_str()) != 1)
+  if (auth_enabled) {
+    // std::cout << "notes: [server] authentication_enabled" <<std::endl;
+    // server.ca
+
+    auto cafile = (!cfg.openssl_cafile.empty() ? cfg.openssl_cafile.c_str()
+                                              : nullptr);
+    auto capath = (!cfg.openssl_capath.empty() ? cfg.openssl_capath.c_str()
+                                                : nullptr);
+    if (cafile || capath) {
+      if (SSL_CTX_load_verify_locations(ctx, cafile, capath) != 1)
+        CAF_RAISE_ERROR("cannot load trusted CA certificates");
+      SSL_CTX_set_verify(ctx, SSL_VERIFY_PEER | SSL_VERIFY_FAIL_IF_NO_PEER_CERT,
+                        nullptr);
+    }
+    else {
+      SSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, nullptr);
+    }
+
+    // server.cert
+    if (!cfg.openssl_certificate.empty()
+        && SSL_CTX_use_certificate_chain_file(ctx,
+                                              cfg.openssl_certificate.c_str())
+            != 1)
       CAF_RAISE_ERROR("cannot load certificate");
-    if (!openssl_passphrase_.empty()) {
+    // server.passphrase
+    if (!cfg.openssl_passphrase.empty()) {
+      openssl_passphrase_ = cfg.openssl_passphrase;
       SSL_CTX_set_default_passwd_cb(ctx, pem_passwd_cb);
       SSL_CTX_set_default_passwd_cb_userdata(ctx, this);
     }
-    if (!key.empty()
-        && SSL_CTX_use_PrivateKey_file(ctx, key.c_str(), SSL_FILETYPE_PEM) != 1)
+
+    // server.pri_key
+    if (!cfg.openssl_key.empty()
+        && SSL_CTX_use_PrivateKey_file(ctx, cfg.openssl_key.c_str(),
+                                      SSL_FILETYPE_PEM)
+            != 1)
       CAF_RAISE_ERROR("cannot load private key");
-    auto cafile_cstr = !cafile.empty() ? cafile.c_str() : nullptr;
-    auto capath_cstr = !capath.empty() ? capath.c_str() : nullptr;
-    if (cafile_cstr || capath_cstr) {
-      if (SSL_CTX_load_verify_locations(ctx, cafile_cstr, capath_cstr) != 1)
-        CAF_RAISE_ERROR("cannot load trusted CA certificates");
+
+    // server.cipher_list
+    std::string default_server_cipher_list = "HIGH:!aNULL:!CBC:!MD5:!eNULL";
+    auto cipher_list_opt = get_if<std::string>(&cfg, "caf.openssl.cipher-list");
+    if(cipher_list_opt && !cipher_list_opt->empty()) {
+      default_server_cipher_list = *cipher_list_opt;
     }
+
+    if (SSL_CTX_set_cipher_list(ctx, default_server_cipher_list.c_str()) != 1)
+      CAF_RAISE_ERROR("cannot set cipher list");
+
+
+    auto cipher_suite_list_opt = get_if<std::string>(&cfg, "caf.openssl.cipher-suite-list");
+    if(cipher_suite_list_opt && !cipher_suite_list_opt->empty()) {
+      std::string server_cipher_suite_list = *cipher_suite_list_opt;
+
+      // std::cout << "cihper suites: " << server_cipher_suite_list << std::endl;
+      if (SSL_CTX_set_ciphersuites(ctx, server_cipher_suite_list.c_str()) != 1) {
+          CAF_RAISE_ERROR("cannot set ciphersuites");
+      }
+    }
+  }
+  else {
+    std::string cipher = "AECDH-AES256-SHA";
+    if (SSL_CTX_set_cipher_list(ctx, cipher.c_str()) != 1)
+      CAF_RAISE_ERROR("cannot set cipher list");
+  }
+}
+
+void session::config_client_ssl_context(bool auth_enabled, SSL_CTX *ctx) {
+  auto& cfg = sys_.config();
+
+  // std::cout << "notes: [client] authentication_enabled?" << auth_enabled <<std::endl;
+  if (SSL_CTX_set_cipher_list(ctx, "ALL") != 1)
+    CAF_RAISE_ERROR("cannot set ALL cipher");
+
+
+  auto cafile = (!cfg.openssl_cafile.empty() ? cfg.openssl_cafile.c_str()
+                                            : nullptr);
+  auto capath = (!cfg.openssl_capath.empty() ? cfg.openssl_capath.c_str()
+                                              : nullptr);
+  if (cafile || capath) {
+    // std::cout << "notes: client also peer verify" << std::endl;
+    if (SSL_CTX_load_verify_locations(ctx, cafile, capath) != 1)
+      CAF_RAISE_ERROR("cannot load trusted CA certificates");
     SSL_CTX_set_verify(ctx, SSL_VERIFY_PEER | SSL_VERIFY_FAIL_IF_NO_PEER_CERT,
-                       nullptr);
-  } else {
-    // No authentication.
+                      nullptr);
+  }
+  else {
     SSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, nullptr);
-#if defined(CAF_SSL_HAS_ECDH_AUTO) && (OPENSSL_VERSION_NUMBER < 0x10100000L)
-    SSL_CTX_set_ecdh_auto(ctx, 1);
-#else
-#  if OPENSSL_VERSION_NUMBER < 0x10101000L
-    auto ecdh = EC_KEY_new_by_curve_name(NID_secp384r1);
-    if (!ecdh)
-      CAF_RAISE_ERROR("cannot get ECDH curve");
-    CAF_PUSH_WARNINGS
-    SSL_CTX_set_tmp_ecdh(ctx, ecdh);
-    EC_KEY_free(ecdh);
-    CAF_POP_WARNINGS
-#  else  /* OPENSSL_VERSION_NUMBER < 0x10101000L */
-    SSL_CTX_set1_groups_list(ctx, "P-384");
-#  endif /* OPENSSL_VERSION_NUMBER < 0x10101000L */
-#endif
   }
-  // Set custom cipher list if specified.
-  if (auto str = get_if<std::string>(&cfg, "caf.openssl.cipher-list");
-      str && !str->empty()) {
-    if (SSL_CTX_set_cipher_list(ctx, str->c_str()) != 1)
-      CAF_RAISE_ERROR("failed to set cipher list");
+
+  if (!cfg.openssl_certificate.empty()) {
+    if (SSL_CTX_use_certificate_chain_file(ctx,
+                                          cfg.openssl_certificate.c_str())
+        != 1) {
+      CAF_RAISE_ERROR("cannot load certificates");
+    }
   }
-  write_str_to_file("/tmp/act.log", "deepnet openssl config.");
+
+  if (!cfg.openssl_passphrase.empty()) {
+    openssl_passphrase_ = cfg.openssl_passphrase;
+    SSL_CTX_set_default_passwd_cb(ctx, pem_passwd_cb);
+    SSL_CTX_set_default_passwd_cb_userdata(ctx, this);
+  }
+
+  // client.pri_key
+  if (!cfg.openssl_key.empty()
+      && SSL_CTX_use_PrivateKey_file(ctx, cfg.openssl_key.c_str(),
+                                    SSL_FILETYPE_PEM)
+          != 1)
+    CAF_RAISE_ERROR("cannot load private key");
+
+  // if (SSL_CTX_set_ciphersuites(ctx, "") != 1) {
+  //     CAF_RAISE_ERROR("cannot set ciphersuites");
+  // }
+}
+
+SSL_CTX* session::create_ssl_context(bool from_accepted_socket, const std::string& hostname) {
+  CAF_BLOCK_SIGPIPE();
+  SSL_CTX *ctx;
+  auto auth_enabled = sys_.openssl_manager().authentication_enabled();
+  if(from_accepted_socket) {
+    ctx = SSL_CTX_new(TLS_server_method());
+    if (!ctx)
+      CAF_RAISE_ERROR("cannot create OpenSSL context");
+    config_server_ssl_context(auth_enabled, ctx);
+  }
+  else {
+    ctx = SSL_CTX_new(TLS_client_method());
+    if (!ctx)
+      CAF_RAISE_ERROR("cannot create OpenSSL context");
+    config_client_ssl_context(auth_enabled, ctx);
+  }
+
   auto& cfg = sys_.config();
   auto tls_list_opt = get_if<std::string>(&cfg, "caf.openssl.tls-list");
-  if(!tls_list_opt->empty()) {
+  if(tls_list_opt && !tls_list_opt->empty()) {
     std::string tls_list = *tls_list_opt;
-    write_str_to_file("/tmp/act.log", "tls_list: " + tls_list);
     if(!contain_substring(tls_list, "TLS 1.0")) {
-      write_str_to_file("/tmp/act.log", "disable TLS 1.0");
       SSL_CTX_set_options(ctx, SSL_OP_NO_TLSv1);
     }
     if(!contain_substring(tls_list, "TLS 1.1")) {
-      write_str_to_file("/tmp/act.log", "disable TLS 1.1");
       SSL_CTX_set_options(ctx, SSL_OP_NO_TLSv1_1);
     }
     if(!contain_substring(tls_list, "TLS 1.2")) {
-      write_str_to_file("/tmp/act.log", "disable TLS 1.2");
       SSL_CTX_set_options(ctx, SSL_OP_NO_TLSv1_2);
     }
+    if(!contain_substring(tls_list, "TLS 1.3")) {
+      SSL_CTX_set_options(ctx, SSL_OP_NO_TLSv1_3);
+    }
   }
+  // SSL_CTX_set_security_level(ctx, 0);
   return ctx;
 }
+
 
 std::string session::get_ssl_error() {
   std::string msg = "";
